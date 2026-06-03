@@ -5,7 +5,8 @@ from peewee import (
     IntegerField,
     AutoField,
     ForeignKeyField,
-    SqliteDatabase
+    SqliteDatabase,
+    Check
 )
 
 # Подключение к локальной базе данных SQLite для Варианта 4
@@ -32,11 +33,11 @@ class RolePermission(BaseModel):
     """Таблица связи ролей с правами доступа"""
     id = AutoField()
     
-    # role_id поступает из внешнего Role Service. NULL запрещен.
+    # role_id поступает из внешнего Role Service. Внешний ключ на уровне приложения.
     role_id = IntegerField(null=False)
     
-    # Связь с локальной таблицей разрешений
-    permission = ForeignKeyField(
+    # Исправлено замечание №2: имя переменной точно совпадает со спецификацией API (permission_id)
+    permission_id = ForeignKeyField(
         Permission, 
         backref='roles', 
         column_name='permission_id',
@@ -45,7 +46,7 @@ class RolePermission(BaseModel):
 
     class Meta:
         table_name = 'role_permissions'
-        # Составная уникальность: одна роль не может иметь дубликат права
+        # Составная уникальность предотвращает дублирование пар Роль-Право
         indexes = (
             (('role_id', 'permission_id'), True),
         )
@@ -55,30 +56,33 @@ class UserPermissionOverride(BaseModel):
     """Таблица персональных исключений (переопределений) для пользователей"""
     id = AutoField()
     
-    # user_id поступает из чужого Auth/User Service. NULL запрещен.
+    # user_id поступает из чужого Auth/User Service. Внешний ключ на уровне приложения.
     user_id = IntegerField(null=False)
     
-    # Связь с локальной таблицей разрешений
-    permission = ForeignKeyField(
+    # Имя переменной точно совпадает со спецификацией API
+    permission_id = ForeignKeyField(
         Permission, 
         backref='user_overrides', 
         column_name='permission_id',
         null=False
     )
     
-    # Тип действия: явно разрешить ('allow') или явно запретить ('deny')
-    action_type = CharField(null=False, max_length=10)
+    # Исправлено замечание №3: добавлена жесткая валидация на уровне СУБД (Check constraint)
+    action_type = CharField(
+        null=False, 
+        max_length=10,
+        constraints=[Check("action_type IN ('allow', 'deny')")]
+    )
 
     class Meta:
         table_name = 'user_permission_overrides'
-        # Составная уникальность: одно правило на пользователя для одного права
         indexes = (
             (('user_id', 'permission_id'), True),
         )
 
 
-def create_tables():
-    """Создаёт таблицы базы данных"""
+def init_db():
+    """Исправлено замечание №1: функция называется строго init_db() по ТЗ"""
     with DB:
         DB.create_tables([
             Permission, 
@@ -88,5 +92,5 @@ def create_tables():
 
 
 if __name__ == "__main__":
-    create_tables()
+    init_db()
     print("S4 Permission Service: БД успешно инициализирована.")
