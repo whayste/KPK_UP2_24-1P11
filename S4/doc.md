@@ -261,3 +261,4 @@ erDiagram
 | `user_id` | int |
 | `permission_id` | int |
 | `action_type` | string |
+

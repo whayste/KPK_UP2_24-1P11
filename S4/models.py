@@ -94,3 +94,4 @@ def init_db():
 if __name__ == "__main__":
     init_db()
     print("S4 Permission Service: БД успешно инициализирована.")
+    
