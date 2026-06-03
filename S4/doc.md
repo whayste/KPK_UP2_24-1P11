@@ -1,55 +1,43 @@
 # Вариант №4 — Permission Service (Сервис разрешений)
 
-Микро微сервис предназначен для тонкой настройки прав доступа в рамках информационной системы колледжа: определение прав на редактирование расписания, просмотр данных и назначение замен.
+Микросервис предназначен для тонкой настройки прав доступа в рамках информационной системы колледжа: определение прав на редактирование расписания, просмотр данных и назначение замен.
 
 ## ER-диаграмма в 3НФ (Mermaid)
 
 ```mermaid
 erDiagram
-    PERMISSION {
+    permissions {
         int id PK
-        string code "unique"
+        string code "unique, index"
         string description
     }
 
-    ROLE_PERMISSION {
+    role_permissions {
         int id PK
-        int role_id FK
+        int role_id
         int permission_id FK
     }
 
-    USER_PERMISSION_OVERRIDE {
+    user_permission_overrides {
         int id PK
-        int user_id FK
+        int user_id
         int permission_id FK
         string action_type "allow / deny"
     }
 
-    EXTERNAL_ROLE {
-        int id PK
-    }
-
-    EXTERNAL_USER {
-        int id PK
-    }
-
-    ROLE_PERMISSION }o--|| PERMISSION : permission_id_to_id
-    USER_PERMISSION_OVERRIDE }o--|| PERMISSION : permission_id_to_id
-    ROLE_PERMISSION }o--|| EXTERNAL_ROLE : role_id_to_id
-    USER_PERMISSION_OVERRIDE }o--|| EXTERNAL_USER : user_id_to_id
+    role_permissions }o--|| permissions : "id → permission_id"
+    user_permission_overrides }o--|| permissions : "id → permission_id"
 ```
 
-**Список реляционных связей с указанием полей:**
-* `ROLE_PERMISSION.permission_id` -> `PERMISSION.id`
-* `USER_PERMISSION_OVERRIDE.permission_id` -> `PERMISSION.id`
-* `ROLE_PERMISSION.role_id` -> `EXTERNAL_ROLE.id`
-* `USER_PERMISSION_OVERRIDE.user_id` -> `EXTERNAL_USER.id`
+**Список реляционных связей, в которых указано, какие поля из каких таблиц связываются:**
+* `permissions.id` → `role_permissions.permission_id`
+* `permissions.id` → `user_permission_overrides.permission_id`
 
 ---
 
 ## Описание API
 
-### ТАБЛИЦА 1: PERMISSION (Системные разрешения)
+### ТАБЛИЦА 1: permissions (Системные разрешения)
 
 #### 1. Добавить сущность
 **Информация для создания:**
@@ -116,7 +104,7 @@ erDiagram
 
 | Параметр (англ.) | Пояснение | Обязательность | Тип | Ограничение | Значение по умолчанию |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `code` | Фильтрация по коду права | Нет | string | При отсутствии, пустом значении или передаче null фильтр отключается и выводятся все записи. При некорректном типе данных возвращается ошибка HTTP 400. | — |
+| `code` | Фильтрация по коду права | Нет | string | Поиск оптимизирован с помощью B-Tree индекса. При отсутствии значения фильтр отключается, выводятся все записи. При неверном типе — HTTP 400. | — |
 
 **Возвращаемый список (с учётом фильтра):**
 
@@ -129,7 +117,7 @@ erDiagram
 
 ---
 
-### ТАБЛИЦА 2: ROLE_PERMISSION (Связь ролей с правами)
+### ТАБЛИЦА 2: role_permissions (Связь ролей с правами)
 
 #### 1. Добавить сущность
 **Информация для создания:**
@@ -138,7 +126,7 @@ erDiagram
 | Параметр (англ.) | Пояснение | Обязательность | Тип | Ограничение | Значение по умолчанию |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `role_id` | Идентификатор роли из внешнего сервиса | Да | int | > 0 | — |
-| `permission_id` | Идентификатор права из таблицы PERMISSION | Да | int | > 0 | — |
+| `permission_id` | Идентификатор права из таблицы permissions | Да | int | > 0 | — |
 
 *Уникальные комбинации параметров:* `role_id` + `permission_id` (нельзя привязать одно право к одной роли дважды). При дублировании возвращается ошибка `409 Conflict`.
 
@@ -199,7 +187,7 @@ erDiagram
 
 | Параметр (англ.) | Пояснение | Обязательность | Тип | Ограничение | Значение по умолчанию |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `role_id` | Фильтр прав для конкретной роли | Нет | int | При отсутствии или передаче некорректного/пустого значения фильтрация игнорируется, и возвращается полный список связей. | — |
+| `role_id` | Фильтр прав для конкретной роли | Нет | int | При отсутствии или передаче некорректного значения фильтрация игнорируется, и возвращается полный список связей. | — |
 
 **Возвращаемый список (с учётом фильтра):**
 
@@ -212,7 +200,7 @@ erDiagram
 
 ---
 
-### ТАБЛИЦА 3: USER_PERMISSION_OVERRIDE (Персональные исключения пользователей)
+### ТАБЛИЦА 3: user_permission_overrides (Персональные исключения пользователей)
 
 #### 1. Добавить сущность
 **Информация для создания:**
@@ -221,7 +209,7 @@ erDiagram
 | Параметр (англ.) | Пояснение | Обязательность | Тип | Ограничение | Значение по умолчанию |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `user_id` | Идентификатор пользователя из внешнего сервиса | Да | int | > 0 | — |
-| `permission_id` | Идентификатор права из таблицы PERMISSION | Да | int | > 0 | — |
+| `permission_id` | Идентификатор права из таблицы permissions | Да | int | > 0 | — |
 | `action_type` | Тип переопределения | Да | string | "allow" или "deny" | — |
 
 *Уникальные комбинации параметров:* `user_id` + `permission_id`. При дублировании возвращается ошибка `409 Conflict`.

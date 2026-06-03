@@ -22,7 +22,7 @@ class BaseModel(Model):
 class Permission(BaseModel):
     """Класс системного разрешения (права доступа)"""
     id = AutoField()
-    code = CharField(null=False, unique=True, max_length=50)
+    code = CharField(null=False, unique=True, index=True, max_length=50)
     description = CharField(null=False, max_length=255)
 
     class Meta:
@@ -33,10 +33,9 @@ class RolePermission(BaseModel):
     """Таблица связи ролей с правами доступа"""
     id = AutoField()
     
-    # role_id поступает из внешнего Role Service. Внешний ключ на уровне приложения.
+    # role_id поступает из внешнего Role Service. NULL запрещен.
     role_id = IntegerField(null=False)
     
-    # Исправлено замечание №2: имя переменной точно совпадает со спецификацией API (permission_id)
     permission_id = ForeignKeyField(
         Permission, 
         backref='roles', 
@@ -46,7 +45,6 @@ class RolePermission(BaseModel):
 
     class Meta:
         table_name = 'role_permissions'
-        # Составная уникальность предотвращает дублирование пар Роль-Право
         indexes = (
             (('role_id', 'permission_id'), True),
         )
@@ -56,10 +54,9 @@ class UserPermissionOverride(BaseModel):
     """Таблица персональных исключений (переопределений) для пользователей"""
     id = AutoField()
     
-    # user_id поступает из чужого Auth/User Service. Внешний ключ на уровне приложения.
+    # user_id поступает из чужого Auth/User Service. NULL запрещен.
     user_id = IntegerField(null=False)
     
-    # Имя переменной точно совпадает со спецификацией API
     permission_id = ForeignKeyField(
         Permission, 
         backref='user_overrides', 
@@ -67,7 +64,6 @@ class UserPermissionOverride(BaseModel):
         null=False
     )
     
-    # Исправлено замечание №3: добавлена жесткая валидация на уровне СУБД (Check constraint)
     action_type = CharField(
         null=False, 
         max_length=10,
@@ -82,7 +78,7 @@ class UserPermissionOverride(BaseModel):
 
 
 def init_db():
-    """Исправлено замечание №1: функция называется строго init_db() по ТЗ"""
+    """Создаёт таблицы базы данных"""
     with DB:
         DB.create_tables([
             Permission, 
@@ -94,4 +90,3 @@ def init_db():
 if __name__ == "__main__":
     init_db()
     print("S4 Permission Service: БД успешно инициализирована.")
-    
